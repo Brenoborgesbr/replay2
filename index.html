@@ -370,8 +370,8 @@ window.addEventListener('keydown', e => {
 }, true);
 
 // ---- Nuvem (Cloudflare R2, via Worker replay-api) ----
-const API_URL   = 'COLE_AQUI_O_ENDERECO_DO_WORKER';   // ex.: https://replay-api.seu-usuario.workers.dev
-const APP_TOKEN = '';                                  // o mesmo APP_TOKEN configurado no Worker (deixe '' se não usar)
+const API_URL   = 'https://replay-api.replay-api.workers.dev';   // ex.: https://replay-api.seu-usuario.workers.dev
+const APP_TOKEN = 'replay-hsZUXoXOayVw';                                // o mesmo APP_TOKEN configurado no Worker (deixe '' se não usar)
 const CLOUD_ON = !API_URL.startsWith('COLE');
 const API = API_URL.replace(/\/+$/, '');
 const authHeaders = APP_TOKEN ? { Authorization: 'Bearer ' + APP_TOKEN } : {};

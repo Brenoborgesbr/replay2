@@ -1,0 +1,8 @@
+name = "replay-api"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Bucket do R2 onde ficam os vídeos (crie com: npx wrangler r2 bucket create replays)
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "replays"

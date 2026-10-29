@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#b9502f">
+<title>Replay 40s</title>
+<style>
+  :root{
+    --clay:#c4582f; --clay-d:#8e3a1d;          /* saibro */
+    --grass:#3d8a45; --grass-d:#245a2c;        /* grama */
+    --hard:#2c62b0; --hard-d:#173c74;          /* quadra dura */
+    --ball:#dff24a;                            /* bolinha */
+    --chalk:#f8f5ee; --ink:#12171d; --card:#1b232c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#000;color:var(--chalk);font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
+  button{font:inherit;font-weight:600;color:#fff;border:0;border-radius:999px;padding:11px 18px;background:#12171d99;
+         backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);cursor:pointer;transition:transform .12s}
+  button:active{transform:scale(.95)}
+
+  /* ---- Câmera ---- */
+  #cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover}
+  #top{position:fixed;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 18px;
+       display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:linear-gradient(#000b,transparent)}
+  #top .pill{display:inline-flex;align-items:center;gap:7px;background:#12171d99;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+             padding:8px 13px;border-radius:999px;font-weight:700;font-size:14px}
+  #dot{width:9px;height:9px;border-radius:50%;background:#ff4b3a;animation:b 1.2s infinite}
+  @keyframes b{50%{opacity:.25}}
+  #cloud{font-size:12px;opacity:.85;margin:6px 0 0 6px}
+  #top .acts{display:flex;gap:8px}
+  #vids{background:var(--clay)}
+  #bottom{position:fixed;bottom:0;left:0;right:0;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 26px);
+          display:flex;justify-content:center;align-items:center;background:linear-gradient(transparent,#0009)}
+  #save{width:88px;height:88px;padding:0;color:#fff;font-weight:800;font-size:14px;letter-spacing:.5px;border:5px solid #fff;
+        background:var(--clay);box-shadow:0 6px 24px #0008}
+  #zoom{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 132px);display:none;justify-content:center;gap:10px}
+  #zoom button{width:46px;height:46px;padding:0;font-size:13px;font-weight:800}
+  #zoom button.on{color:var(--ink);background:var(--ball);transform:scale(1.08)}
+  #lens{display:none}
+  #msg{position:fixed;top:calc(env(safe-area-inset-top,0px) + 70px);left:0;right:0;display:flex;justify-content:center;pointer-events:none;z-index:9}
+  #msg span{background:var(--ink);border-left:4px solid var(--ball);padding:9px 14px;border-radius:10px;font-size:14px;box-shadow:0 4px 16px #0006}
+
+  /* ---- Capa ---- */
+  #start{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;
+         padding:24px 24px calc(env(safe-area-inset-bottom,0px) + 40px);z-index:4;overflow:hidden;
+         background:radial-gradient(ellipse at 50% 35%,#d66a40,var(--clay) 45%,var(--clay-d))}
+  #start .court{position:absolute;inset:0;width:100%;height:100%;opacity:.22;pointer-events:none}
+  #start > *:not(.court){position:relative}
+  #start .ball{width:96px;height:96px;filter:drop-shadow(0 10px 18px #0006);animation:bounce 2.4s ease-in-out infinite}
+  @keyframes bounce{0%,100%{transform:translateY(0)}45%{transform:translateY(-16px)}}
+  #start h1{margin:0;font-size:clamp(44px,13vw,72px);font-weight:900;letter-spacing:-2px;line-height:.95;text-shadow:0 4px 0 #0003}
+  #start h1 small{display:block;font-size:.32em;letter-spacing:4px;font-weight:800;color:var(--ball);margin-top:8px}
+  #start p{margin:0;max-width:340px;font-size:16px;line-height:1.45;color:#fff;text-shadow:0 1px 3px #0007}
+  #go{background:var(--ball);color:var(--ink);font-size:18px;font-weight:800;padding:17px 34px;box-shadow:0 6px 0 #9fb21d,0 12px 28px #0005}
+  #go:active{transform:translateY(4px);box-shadow:0 2px 0 #9fb21d}
+
+  /* ---- Lista de vídeos ---- */
+  #list{position:fixed;inset:0;background:var(--ink);display:none;flex-direction:column;z-index:5}
+  #list .stripe{display:flex;height:9px;flex:none;border-top:3px solid var(--chalk)}
+  #list .stripe i{flex:1}
+  #list .lh{display:flex;justify-content:space-between;align-items:center;gap:12px;
+            padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 14px;
+            background:linear-gradient(135deg,var(--hard-d),var(--hard));flex:none}
+  #list .lh h2{margin:0;font-size:22px;font-weight:900;display:flex;align-items:center;gap:10px}
+  #list .lh h2 svg{width:28px;height:28px}
+  #count{font-size:13px;opacity:.8;margin-top:2px}
+  #closeList{background:#ffffff26}
+  #items{overflow:auto;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 28px);display:grid;gap:16px;
+         grid-template-columns:repeat(auto-fill,minmax(300px,1fr));grid-auto-rows:max-content;align-content:start;flex:1;min-height:0}
+  #items .row{background:var(--card);border-radius:16px;overflow:hidden;border-top:5px solid var(--c);box-shadow:0 6px 18px #0004}
+  #items .row.s0{--c:var(--clay)} #items .row.s1{--c:var(--grass)} #items .row.s2{--c:var(--hard)}
+  #items video{display:block;width:100%;aspect-ratio:16/9;max-height:50vh;background:#000;object-fit:contain}
+  #items .poster{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%;aspect-ratio:16/9;
+                 max-height:50vh;border-radius:0;padding:0;color:#fff;backdrop-filter:none;
+                 background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--c) 55%,#000),#0b0f13)}
+  #items .poster small{font-size:12px;font-weight:600;opacity:.7}
+  #items .play{width:62px;height:62px;border-radius:50%;background:var(--ball);box-shadow:0 6px 18px #0007;position:relative}
+  #items .play::after{content:"";position:absolute;left:25px;top:19px;border-style:solid;border-width:12px 0 12px 19px;
+                      border-color:transparent transparent transparent var(--ink)}
+  #items .meta{display:flex;align-items:center;gap:10px;padding:12px 14px}
+  #items .when{flex:1;min-width:0}
+  #items .when b{display:block;font-size:15px}
+  #items .when span{font-size:12px;opacity:.65}
+  #items .dl,#items .del{font-size:13px;padding:8px 13px;border-radius:999px;text-decoration:none;font-weight:700;backdrop-filter:none}
+  #items .dl{background:var(--ball);color:var(--ink)}
+  #items .del{background:transparent;color:#ff9c7d;border:1.5px solid #ff9c7d66}
+  #items .del:disabled{opacity:.5}
+  #items .empty{grid-column:1/-1;text-align:center;padding:60px 20px;opacity:.85;line-height:1.5}
+  #items .empty svg{width:64px;height:64px;display:block;margin:0 auto 14px}
+
+  /* ---- Prévia (sem nuvem) ---- */
+  #result{position:fixed;inset:0;background:#000e;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;z-index:6}
+  #result video{max-width:100%;max-height:65%;border-radius:14px;border-top:5px solid var(--clay)}
+  #share{background:var(--ball);color:var(--ink)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="ball" viewBox="0 0 100 100">
+    <defs><radialGradient id="bg" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#f4ff97"/><stop offset=".55" stop-color="#dff24a"/><stop offset="1" stop-color="#a9bb1c"/></radialGradient>
+      <clipPath id="bc"><circle cx="50" cy="50" r="46"/></clipPath></defs>
+    <circle cx="50" cy="50" r="46" fill="url(#bg)"/>
+    <g clip-path="url(#bc)" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round">
+      <path d="M8 18 C36 34 36 66 8 82"/><path d="M92 18 C64 34 64 66 92 82"/>
+    </g>
+  </symbol>
+</svg>
+
+<video id="cam" autoplay playsinline muted></video>
+
+<div id="top">
+  <div><span class="pill"><span id="dot"></span><span id="buf">Buffer: 0s / 40s</span></span>
+    <div id="cloud"></div>
+    <div id="lens"></div></div>
+  <div class="acts"><button id="vids">Vídeos</button><button id="flip">Virar</button></div>
+</div>
+<div id="msg"></div>
+
+<div id="zoom"></div>
+<div id="bottom"><button id="save">SALVAR</button></div>
+
+<div id="start">
+  <svg class="court" viewBox="0 0 360 780" preserveAspectRatio="xMidYMid slice" fill="none" stroke="#fff" stroke-width="4">
+    <rect x="40" y="60" width="280" height="660"/>
+    <line x1="75" y1="60" x2="75" y2="720"/><line x1="285" y1="60" x2="285" y2="720"/>
+    <line x1="75" y1="235" x2="285" y2="235"/><line x1="75" y1="545" x2="285" y2="545"/>
+    <line x1="180" y1="235" x2="180" y2="545"/>
+    <line x1="180" y1="60" x2="180" y2="74"/><line x1="180" y1="706" x2="180" y2="720"/>
+    <line x1="20" y1="390" x2="340" y2="390" stroke-width="6" stroke-dasharray="3 5"/>
+  </svg>
+  <svg class="ball"><use href="#ball"/></svg>
+  <h1>Replay<small>SEUS MELHORES LANCES</small></h1>
+  <p>A câmera grava sem parar. Fez um ponto bonito? Toque em <b>SALVAR</b> e os últimos 40 segundos ficam guardados.</p>
+  <button id="go">Ativar câmera</button>
+</div>
+
+<div id="list">
+  <div class="lh">
+    <div><h2><svg><use href="#ball"/></svg>Seus lances</h2><div id="count"></div></div>
+    <button id="closeList">Fechar</button>
+  </div>
+  <div class="stripe"><i style="background:var(--clay)"></i><i style="background:var(--grass)"></i><i style="background:var(--hard)"></i></div>
+  <div id="items"></div>
+</div>
+
+<div id="result">
+  <video id="prev" controls playsinline></video>
+  <div>
+    <button id="share">Salvar / Compartilhar</button>
+    <button id="close">Fechar</button>
+  </div>
+</div>
+
+<script>
+const TARGET = 40000;          // segundos desejados no replay
+const N = 6;                   // gravadores alternados
+const SEG = 60000;             // cada gravador roda 60s e reinicia
+const OFFSET = SEG / N;        // defasagem entre eles (20s)
+
+const $ = id => document.getElementById(id);
+let stream = null, facing = 'environment', slots = [], mime = '', lastBlob = null, wake = null;
+
+function pickMime() {
+  const c = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  return c.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+}
+
+async function startCamera() {
+  stopAll();
+  const video = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+  if (facing === 'environment' && backDeviceId) video.deviceId = { exact: backDeviceId };
+  else video.facingMode = facing;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
+  } catch (e) {
+    if (!backDeviceId) throw e;
+    backDeviceId = null;                       // câmera escolhida não abriu: volta para a padrão
+    return startCamera();
+  }
+  // Na primeira vez, troca para a câmera "virtual" do iPhone que junta as lentes (0,5x / 1x / 2x).
+  // Os nomes das câmeras só aparecem depois que o usuário dá a permissão, por isso é feito aqui.
+  if (facing === 'environment' && !lensTried) {
+    lensTried = true;
+    const multi = await findMultiCam();
+    if (multi && multi !== stream.getVideoTracks()[0].getSettings().deviceId) {
+      backDeviceId = multi;
+      return startCamera();
+    }
+  }
+  $('cam').srcObject = stream;
+  mime = pickMime();
+  slots = Array.from({ length: N }, (_, i) => ({ i, rec: null, chunks: [], start: 0, timer: null, delay: null }));
+  slots.forEach((s, i) => s.delay = setTimeout(() => cycle(s), i * OFFSET));
+  try { wake = await navigator.wakeLock?.request('screen'); } catch {}
+  setupLenses();
+}
+
+// ---- Lentes / zoom (0,5x, 1x, 2x) ----
+// Câmeras "virtuais" do iPhone que juntam várias lentes: com elas o zoom troca de lente de verdade
+// (0,5x = ultra-angular), sem zoom digital e sem reiniciar a gravação.
+const MULTI_UW = /triple|tripla|dual wide|dupla.*(grande|ampla)|(grande|ampla).*dupla/i;
+let backDeviceId = null, lensTried = false, lensMode = null, zoomBase = 1, zoomLevel = 1, lensDevices = {};
+
+async function backCams() {
+  const all = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+  return all.filter(d => !/front|frontal|facetime/i.test(d.label));
+}
+async function findMultiCam() {
+  try {
+    const cams = await backCams();
+    const m = cams.find(d => /triple|tripla/i.test(d.label)) || cams.find(d => MULTI_UW.test(d.label));
+    return m ? m.deviceId : null;
+  } catch { return null; }
+}
+
+async function setupLenses() {
+  const box = $('zoom');
+  box.innerHTML = ''; box.style.display = 'none'; lensMode = null;
+  if (facing !== 'environment' || !stream) { $('lens').textContent = ''; return; }
+  const track = stream.getVideoTracks()[0];
+  const z = track.getCapabilities ? track.getCapabilities().zoom : null;
+  let levels = [];
+  if (z && z.max > z.min) {
+    // Modo 1: a câmera aceita zoom. Numa câmera virtual com ultra-angular, o zoom mínimo (1) é o 0,5x,
+    // então o "1x" do iPhone corresponde a 2 aqui. Se o navegador já entregar o mínimo como 0,5, usa direto.
+    lensMode = 'zoom';
+    zoomBase = z.min < 1 ? 1 : (MULTI_UW.test(track.label) ? 2 : 1);
+    levels = [0.5, 1, 2].filter(v => v * zoomBase >= z.min - 0.01 && v * zoomBase <= z.max + 0.01);
+    $('lens').textContent = `${track.label || 'câmera'} · zoom ${z.min}–${z.max}`;
+  } else {
+    // Modo 2: sem zoom no navegador. Troca de câmera física (reinicia o buffer).
+    lensMode = 'device';
+    const cams = await backCams();
+    const uw   = cams.find(d => /ultra/i.test(d.label));
+    const tele = cams.find(d => /tele/i.test(d.label));
+    const main = cams.find(d => !/ultra|tele|dual|dupla|triple|tripla/i.test(d.label));
+    lensDevices = {};
+    if (uw) lensDevices[0.5] = uw.deviceId;
+    if (main) lensDevices[1] = main.deviceId;
+    if (tele) lensDevices[2] = tele.deviceId;
+    levels = Object.keys(lensDevices).map(Number).sort((a, b) => a - b);
+    $('lens').textContent = `${track.label || 'câmera'} · sem zoom`;
+  }
+  if (levels.length < 2) return;
+  levels.forEach(v => {
+    const b = document.createElement('button');
+    b.textContent = v === 0.5 ? '.5' : v + 'x';
+    b.dataset.z = v;
+    b.onclick = () => chooseLens(v);
+    box.appendChild(b);
+  });
+  box.style.display = 'flex';
+  if (lensMode === 'zoom') applyZoom(levels.includes(zoomLevel) ? zoomLevel : 1);
+  else {
+    const cur = track.getSettings().deviceId;
+    const v = Object.keys(lensDevices).find(k => lensDevices[k] === cur);
+    zoomLevel = v ? Number(v) : 1;
+    markZoom();
+  }
+}
+
+async function applyZoom(v) {
+  const track = stream && stream.getVideoTracks()[0];
+  if (!track) return;
+  try {
+    await track.applyConstraints({ advanced: [{ zoom: v * zoomBase }] });
+    zoomLevel = v; markZoom();
+  } catch (e) { flash(`O aparelho não aceitou o zoom ${v}x`); }
+}
+
+async function chooseLens(v) {
+  if (v === zoomLevel) return;
+  if (lensMode === 'zoom') return applyZoom(v);
+  backDeviceId = lensDevices[v];
+  zoomLevel = v;
+  flash('Trocando de lente: o buffer recomeça');
+  try { await startCamera(); } catch (e) { flash('Não consegui abrir essa lente'); }
+}
+
+function markZoom() {
+  [...$('zoom').children].forEach(b => b.classList.toggle('on', Number(b.dataset.z) === zoomLevel));
+}
+
+function cycle(slot) {
+  if (!stream) return;
+  slot.chunks = [];
+  const rec = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 5000000 });
+  rec.ondataavailable = e => { if (e.data.size) slot.chunks.push(e.data); };
+  rec.start(1000);
+  slot.rec = rec;
+  slot.start = Date.now();
+  slot.timer = setTimeout(() => { rec.onstop = () => cycle(slot); rec.stop(); }, SEG);
+}
+
+function stopAll() {
+  slots.forEach(s => {
+    clearTimeout(s.timer); clearTimeout(s.delay);
+    if (s.rec && s.rec.state !== 'inactive') { s.rec.onstop = null; s.rec.stop(); }
+  });
+  slots = [];
+  stream?.getTracks().forEach(t => t.stop());
+  stream = null;
+}
+
+function elapsed(s) { return s.rec && s.rec.state === 'recording' ? Date.now() - s.start : 0; }
+
+function save() {
+  const best = slots.reduce((a, b) => elapsed(b) > elapsed(a) ? b : a, slots[0]);
+  if (!best || elapsed(best) < 2000) { flash('Aguarde alguns segundos de gravação'); return; }
+  const secs = Math.round(elapsed(best) / 1000);
+  clearTimeout(best.timer);
+  best.rec.onstop = () => {
+    lastBlob = new Blob(best.chunks, { type: mime || 'video/webm' });
+    if (CLOUD_ON) {
+      enqueue(lastBlob);
+      flash(`Clipe de ~${Math.min(secs, 60)}s na fila de envio`);
+    } else {
+      $('prev').src = URL.createObjectURL(lastBlob);
+      $('result').style.display = 'flex';
+      flash(`Clipe salvo: ~${Math.min(secs, 60)}s`);
+    }
+    cycle(best);   // reinicia esse gravador
+  };
+  best.rec.stop();
+}
+
+async function shareOrDownload() {
+  const ext = (lastBlob.type.includes('mp4')) ? 'mp4' : 'webm';
+  const file = new File([lastBlob], `replay-${Date.now()}.${ext}`, { type: lastBlob.type });
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; } catch {}
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(lastBlob);
+  a.download = file.name;
+  a.click();
+}
+
+let flashTimer = null;
+function flash(t) {
+  $('msg').innerHTML = '';
+  const s = document.createElement('span');
+  s.textContent = t;
+  $('msg').appendChild(s);
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => $('msg').innerHTML = '', 3000);
+}
+
+setInterval(() => {
+  if (!slots.length) return;
+  const max = Math.max(...slots.map(elapsed));
+  $('buf').textContent = `Buffer: ${Math.min(Math.floor(max / 1000), 40)}s / 40s`;
+}, 500);
+
+// ---- Botão bluetooth (controle de tripé) ----
+// Esses controles se comportam como um teclado: enviam Enter, Espaço, Volume+ etc.
+const REMOTE_KEYS = ['Enter', ' ', 'AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown',
+                     'MediaPlayPause', 'MediaTrackNext', 'MediaTrackPrevious', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+let lastRemote = 0;
+window.addEventListener('keydown', e => {
+  // mostra a tecla recebida, para descobrir o que o seu controle envia
+  if ($('key')) $('key').textContent = `Controle: key="${e.key}" code="${e.code}" keyCode=${e.keyCode}`;
+  if (!stream || $('result').style.display === 'flex') return;
+  if (!REMOTE_KEYS.includes(e.key) && ![24, 25, 175, 176, 179].includes(e.keyCode)) return;
+  e.preventDefault();
+  if (Date.now() - lastRemote < 1500) return;   // evita disparos duplicados
+  lastRemote = Date.now();
+  save();
+}, true);
+
+// ---- Nuvem (Cloudflare R2, via Worker replay-api) ----
+const API_URL   = 'COLE_AQUI_O_ENDERECO_DO_WORKER';   // ex.: https://replay-api.seu-usuario.workers.dev
+const APP_TOKEN = '';                                  // o mesmo APP_TOKEN configurado no Worker (deixe '' se não usar)
+const CLOUD_ON = !API_URL.startsWith('COLE');
+const API = API_URL.replace(/\/+$/, '');
+const authHeaders = APP_TOKEN ? { Authorization: 'Bearer ' + APP_TOKEN } : {};
+
+// fila persistente no aparelho (IndexedDB): se a rede cair, o clipe não se perde
+function openDb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('replay-queue', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('clips', { keyPath: 'id' });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function tx(mode, fn) {
+  const d = await openDb();
+  return new Promise((res, rej) => {
+    const t = d.transaction('clips', mode);
+    const req = fn(t.objectStore('clips'));
+    t.oncomplete = () => res(req && req.result);
+    t.onerror = () => rej(t.error);
+  });
+}
+const qPut = c  => tx('readwrite', s => s.put(c));
+const qDel = id => tx('readwrite', s => s.delete(id));
+const qAll = () => tx('readonly',  s => s.getAll());
+
+async function enqueue(blob) {
+  const type = (blob.type || 'video/webm').split(';')[0];
+  const ext = type.includes('mp4') ? 'mp4' : 'webm';
+  const id = Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  try { await qPut({ id, name: `replay-${stamp}-${id.slice(-4)}.${ext}`, type, blob }); }
+  catch (e) { flash('Erro ao guardar o clipe na fila'); return; }
+  processQueue();
+}
+
+function showQueue(n) {
+  $('cloud').textContent = CLOUD_ON ? (n ? `☁ ${n} na fila de envio` : '☁ tudo enviado') : '';
+}
+
+let sending = false;
+async function processQueue() {
+  if (!CLOUD_ON || sending) return;
+  sending = true;
+  try {
+    for (;;) {
+      const items = await qAll();
+      showQueue(items.length);
+      if (!items.length) break;
+      const c = items[0];
+      const r = await fetch(`${API}/videos/${encodeURIComponent(c.name)}`, {
+        method: 'PUT',
+        headers: { ...authHeaders, 'Content-Type': c.type },
+        body: c.blob
+      });
+      if (!r.ok) throw new Error(await r.text());   // PUT repetido só sobrescreve: reenviar é seguro
+      await qDel(c.id);
+      flash('Clipe enviado ✔');
+    }
+  } catch (e) {
+    $('cloud').textContent = '☁ envio falhou, tentando de novo...';
+    setTimeout(processQueue, 15000);
+  } finally { sending = false; }
+}
+window.addEventListener('online', processQueue);
+setInterval(processQueue, 30000);
+
+// ---- Lista de vídeos enviados ----
+function emptyState(msg) {
+  $('items').innerHTML = `<div class="empty"><svg><use href="#ball"/></svg>${msg}</div>`;
+}
+function setCount(n) {
+  $('count').textContent = n ? `${n} ${n === 1 ? 'vídeo' : 'vídeos'} na nuvem` : '';
+}
+async function openList() {
+  $('list').style.display = 'flex';
+  const box = $('items');
+  setCount(0);
+  emptyState('Carregando seus lances...');
+  try {
+    const r = await fetch(`${API}/videos`, { cache: 'no-store' });
+    if (!r.ok) throw new Error(await r.text());
+    const files = (await r.json()).filter(f => f.name);   // já vem do mais novo para o mais antigo
+    if (!files.length) { emptyState('Nenhum lance ainda.<br>Toque em <b>SALVAR</b> durante o jogo.'); return; }
+    setCount(files.length);
+    box.innerHTML = '';
+    files.forEach((f, i) => {
+      const url = `${API}/videos/${encodeURIComponent(f.name)}`;
+      const d = new Date(f.created_at);
+      const day = d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+      const hour = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const size = f.size ? ' · ' + (f.size / 1048576).toFixed(1) + ' MB' : '';
+      const row = document.createElement('div');
+      row.className = 'row s' + (i % 3);   // alterna saibro / grama / dura
+      row.innerHTML = `<button class="poster" aria-label="Assistir"><span class="play"></span><small>Toque para assistir</small></button>
+        <div class="meta"><div class="when"><b>${hour}</b><span>${day}${size}</span></div>
+          <a class="dl" href="${url}?download=1">Baixar</a>
+          <button class="del">Excluir</button></div>`;
+      row.querySelector('.poster').onclick = e => playVideo(e.currentTarget, url);
+      row.querySelector('.del').onclick = () => deleteVideo(f.name, row);
+      box.appendChild(row);
+    });
+  } catch (e) { emptyState('Erro ao listar: ' + e.message); }
+}
+
+// O vídeo só é baixado quando a pessoa toca: abrir a lista não gasta tráfego
+function playVideo(poster, url) {
+  document.querySelectorAll('#items video').forEach(v => v.pause());
+  const v = document.createElement('video');
+  v.src = url; v.controls = true; v.autoplay = true; v.playsInline = true;
+  v.onplay = () => document.querySelectorAll('#items video').forEach(o => { if (o !== v) o.pause(); });
+  poster.replaceWith(v);
+  v.play().catch(() => {});
+}
+
+async function deleteVideo(name, row) {
+  if (!confirm('Excluir este vídeo do banco de dados? Não dá para desfazer.')) return;
+  const btn = row.querySelector('.del');
+  btn.disabled = true; btn.textContent = 'Excluindo...';
+  try {
+    const r = await fetch(`${API}/videos/${encodeURIComponent(name)}`, { method: 'DELETE', headers: authHeaders });
+    if (r.status === 401) throw new Error('token inválido (confira APP_TOKEN)');
+    if (!r.ok) throw new Error(await r.text());
+    row.querySelector('video')?.pause();
+    row.remove();
+    const left = $('items').querySelectorAll('.row').length;
+    setCount(left);
+    if (!left) emptyState('Nenhum lance ainda.<br>Toque em <b>SALVAR</b> durante o jogo.');
+    flash('Vídeo excluído');
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Excluir';
+    alert('Não consegui excluir: ' + e.message);
+  }
+}
+$('vids').onclick = () => CLOUD_ON ? openList() : flash('Configure o API_URL (Cloudflare) no arquivo primeiro');
+$('closeList').onclick = () => { $('list').style.display = 'none'; };
+
+// abrir só a lista (ex.: no notebook): .../Replay/?videos
+if (new URLSearchParams(location.search).has('videos')) {
+  ['start', 'bottom', 'top', 'key', 'zoom'].forEach(id => { if ($(id)) $(id).style.display = 'none'; });
+  $('closeList').style.display = 'none';
+  if (CLOUD_ON) openList(); else emptyState('Nuvem (Cloudflare) não configurada.');
+}
+if (CLOUD_ON) processQueue();
+
+// ---- Gatilho remoto (Apple Watch / Atalhos via Cloudflare) ----
+// O atalho faz POST em /trigger; a página checa a cada 1,5s e salva quando a hora muda.
+let remoteLast = null, remoteTimer = null, remoteBusy = false;
+function startRemotePoll() {
+  if (!CLOUD_ON || remoteTimer) return;
+  remoteTimer = setInterval(async () => {
+    if (!stream || remoteBusy) return;
+    remoteBusy = true;
+    try {
+      const r = await fetch(`${API}/trigger`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const row = await r.json();
+      if (remoteLast === null) { remoteLast = row.pressed_at; return; }   // primeira leitura: só memoriza
+      if (row.pressed_at !== remoteLast) {
+        remoteLast = row.pressed_at;
+        if ($('result').style.display !== 'flex' && Date.now() - lastRemote > 1500) {
+          lastRemote = Date.now();
+          save();
+        }
+      }
+    } catch (e) {} finally { remoteBusy = false; }
+  }, 1500);
+}
+
+$('go').onclick = async () => {
+  try { await startCamera(); $('start').style.display = 'none'; startRemotePoll(); }
+  catch (e) { alert('Não consegui acessar a câmera. Use HTTPS e permita o acesso.\n' + e.message); }
+};
+$('flip').onclick = async () => { facing = facing === 'environment' ? 'user' : 'environment'; await startCamera(); };
+$('save').onclick = save;
+$('share').onclick = shareOrDownload;
+$('close').onclick = () => { $('result').style.display = 'none'; $('prev').pause(); };
+document.addEventListener('visibilitychange', async () => {
+  if (!document.hidden && stream) { try { wake = await navigator.wakeLock?.request('screen'); } catch {} }
+});
+</script>
+</body>
+</html>
